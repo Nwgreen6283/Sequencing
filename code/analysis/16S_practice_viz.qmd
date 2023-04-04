@@ -1,0 +1,245 @@
+---
+title: "16S_practice_viz"
+format:
+  html:
+    theme: default
+---
+
+# Getting Started:
+
+#### Libraries
+
+```{r}
+library(tidyverse)
+library(here)
+library(vegan)
+library(viridis)
+library(cowplot)
+```
+
+#### Load Clean 16S data
+
+```{r}
+data<- readRDS(file = here("data", "clean_data", "clean_16S_practice.rds"))
+ps<- readRDS(file =  here("data", "clean_data", "clean_16S_phyloseq_practice.rds")) #For Diversity Plots
+```
+
+# Cleaning
+
+#### Filter out undesirables (e.g. mitochondria)
+
+```{r}
+data<- data %>%
+  filter(!Family %in% "Mitochondria") #Filter out Mitochondria 
+```
+
+# Visualization
+
+## Community Composition
+
+https://www.rpubs.com/roalle/mres_2019
+
+#### Stacked Barplot
+
+```{r, fig.width=12}
+data %>% ggplot() + geom_bar(
+  aes(x = ddate,
+      y = Abundance,
+      fill = Order),
+  color = "black",
+  stat = "identity") +
+  facet_wrap(~Site, scales = "free_x")+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_date(date_breaks = "1 day", date_labels = "%b%d") 
+```
+
+##### Stacked Barplot: Look at just Vibrionales
+
+```{r}
+vib<- data %>% 
+  filter(Order %in% "Vibrionales") 
+
+vib %>% ggplot() + geom_bar(
+  aes(x = ddate,
+      y = Abundance,
+      fill = Order),
+  color = "black",
+  stat = "identity") +
+  facet_wrap(~Site, scales = "free_x")+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_date(date_breaks = "1 day", date_labels = "%b%d") 
+```
+
+## Diversity (Phyloseq)
+
+### Alpha Diversity
+
+#### Plot
+
+```{r}
+alpha_plot <- 
+  plot_richness(
+    ps, 
+    x="Date",
+    measures=c("Shannon", "Simpson"), 
+    color="Site") + 
+  theme_bw() +
+ theme(axis.text.x = element_text(angle = 60, hjust = 1))
+alpha_plot
+```
+
+#### Stats
+
+```{r}
+#Yay! We made a plot! But are values significantly different from one another? Lets estimate richness and then run a Mann-Whitley significance test.
+#Get the richness values for Shannon and Simson Indices
+a_rich <- estimate_richness(ps, split = TRUE, measures = c("Shannon", "Simpson"))
+
+#Run a Mann-Whitley (Pairwise Wilcox) test on shannon indice values to observe significance with certain variables - here we will use Site
+a_shan <- pairwise.wilcox.test(a_rich$Shannon, sample_data(ps)$Site)
+a_shan
+#Run a Mann-Whitley (Pairwise Wilcox) test on simpson indice values to observe significance with certain variables - here we will use Site
+a_simp <-pairwise.wilcox.test(a_rich$Simpson, sample_data(ps)$Site)
+a_simp
+```
+
+## Beta Diversity
+
+#### Plot
+
+#### Stats
+
+## Diversity (Ggplot)
+
+<!--# Everything below is me trying to make diversity plots in ggplot instead of phyloseq -->
+
+### Alpha Diversity
+
+Alpha diversity refers to the [**diversity of a local communi**]{.ul}ty (i.e. a single site or sample). The simplest form of alpha diversity is species richness which is the number of species observed in the local community. However, there are many different metrics which can be used to quantify alpha diversity in community ecology, that can broadly be broken down into three categories: measures of **species richness**, measures of **species evenness**, and **overall diversity metrics** considering both richness and evenness. Here we will explore three of the most common.
+
+[**Shannon Diversity:**]{.ul} Shannon's H' is the most frequently used metric to quantify overall diversity of a site. Shannon's H' takes into account both the total number of species observed at a site, and how evenly distributed species abundance is at each site. Shannon's H' is a measure of how difficult it is to predict the identity of a randomly chosen indvidual from the community
+
+[**Richness**]{.ul}: Richness is simply the number of species at a specific site.
+
+[**Evenness**]{.ul}: Evenness is an important component of diversity, and reflects how evenly distributed abundances are between all species present at a site.
+
+#### Make DF for diversity metrics
+
+```{r}
+div<- 
+  data %>%
+  select(OTU,Site, Abundance, ddate) %>%
+  filter(Abundance > 0) %>% #Gets rid of 0 abundance
+  count(OTU, ddate, name = "count")
+```
+
+<!--# Should i be getting rid of Abundance <0? -->
+
+\
+<!--# I need to make a counts column -->
+
+#### Create Dataframe of metrics
+
+```{r}
+alpha<-
+  div %>%
+  group_by(ddate, Site) %>%
+  summarise(
+    richness = specnumber(Abundance), #THIS SHOULD NOT BE AUNDANCE> BUT COUNT.
+    shannon = diversity(Abundance, index = "shannon"),
+    simpson = diversity(Abundance, index =  "simpson"))
+alpha
+# Pielou's Evenness
+#evenness <- H/log(richness)
+```
+
+#### Plot Alpha Diversity
+
+##### By Site
+
+```{r}
+plot.shan <- 
+  ggplot(alpha, aes(
+    x = Site, 
+    y = shannon, 
+    colour = Site)) +
+  geom_point(size = 3) +
+  scale_colour_viridis_d(option = "magma", 
+                         begin = 0.2, 
+                         end = 0.8) +
+  ylab("Shannon's H'") + 
+  xlab("") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4))
+plot.shan
+
+plot.rich <-
+  ggplot(alpha, 
+         aes(x = Site,
+             y = richness,
+             colour = Site)) +
+  geom_point(size = 3) +
+  scale_colour_viridis_d(option = "magma", begin = 0.2, end = 0.8) +
+  ylab("Species Richness") +
+  xlab("") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4))
+plot.rich
+
+plot.simp <-
+  ggplot(alpha, 
+         aes(x = Site, 
+             y = simpson, 
+             colour = Site)) +
+  geom_point(size = 3) +
+  scale_colour_viridis_d(option = "magma", begin = 0.2, end = 0.8) +
+  ylab("Simpson") +
+  xlab("") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4))
+plot.simp
+```
+
+##### By Date
+
+```{r}
+plot.alpha.shan <- 
+  ggplot(alpha, aes(
+    x = ddate, 
+    y = shannon, 
+    colour = Site)) +
+  geom_point(size = 3) +
+  scale_colour_viridis_d(option = "magma", 
+                         begin = 0.2, 
+                         end = 0.8) +
+  ylab("Shannon's H'") + 
+  xlab("") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4))
+plot.alpha.shan
+
+plot.alpha.simp <- 
+  ggplot(alpha, aes(
+    x = ddate, 
+    y = simpson, 
+    colour = Site)) +
+  geom_point(size = 3) +
+  scale_colour_viridis_d(option = "magma", 
+                         begin = 0.2, 
+                         end = 0.8) +
+  ylab("Simpson'") + 
+  xlab("") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.4))
+plot.alpha.simp
+```
+
+<!--# Can also look at relationship b/t alpha diversity and env data (look at linke tutorial) -->
+
+### Beta Diversity
+
+The diversity between local communities.
+
+#### Bray-Curtis?
