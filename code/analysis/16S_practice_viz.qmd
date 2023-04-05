@@ -115,6 +115,8 @@ a_simp
 
 <!--# Everything below is me trying to make diversity plots in ggplot instead of phyloseq -->
 
+<!--# Melt ps and go back to ps? -->
+
 ### Alpha Diversity
 
 Alpha diversity refers to the [**diversity of a local communi**]{.ul}ty (i.e. a single site or sample). The simplest form of alpha diversity is species richness which is the number of species observed in the local community. However, there are many different metrics which can be used to quantify alpha diversity in community ecology, that can broadly be broken down into three categories: measures of **species richness**, measures of **species evenness**, and **overall diversity metrics** considering both richness and evenness. Here we will explore three of the most common.
@@ -131,8 +133,8 @@ Alpha diversity refers to the [**diversity of a local communi**]{.ul}ty (i.e. a
 div<- 
   data %>%
   select(OTU,Site, Abundance, ddate) %>%
-  filter(Abundance > 0) %>% #Gets rid of 0 abundance
-  count(OTU, ddate, name = "count")
+  filter(Abundance > 0)# %>% #Gets rid of 0 abundance
+ # count(OTU, ddate, name = "count")
 ```
 
 <!--# Should i be getting rid of Abundance <0? -->

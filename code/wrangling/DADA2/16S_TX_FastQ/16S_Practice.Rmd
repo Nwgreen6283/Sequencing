@@ -9,10 +9,6 @@ output: html_document
 
 Here we walk through version 1.16 of the DADA2 pipeline on a small multi-sample dataset. Our starting point is a set of Illumina-sequenced paired-end fastq files that have been split (or "demultiplexed") by sample and from which the barcodes/adapters have already been removed. The end product is an **amplicon sequence variant (ASV) table**, a higher-resolution analogue of the traditional OTU table, which records the number of times each [exact amplicon sequence variant](https://www.nature.com/articles/ismej2017119) was observed in each sample. We also assign taxonomy to the output sequences, and demonstrate how the data can be imported into the popular [phyloseq](https://joey711.github.io/phyloseq/) R package for the analysis of microbiome data.
 
-<!--# Is there a way i can upload this to Github? -->
-
-<!--# DO WE NEED TO MAKE THIS OTU TO BE LESS SPECIFIC? -->
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -63,18 +59,26 @@ We generally advise trimming the last few nucleotides to avoid less well-control
 #### Forward Reads
 
 ```{r}
-plotQualityProfile(fnFs[1:2])
+plotQualityProfile(fnFs[1:4])
 ```
+
+Trim when it drops below 20 or 15 on Quality score (20 is pretty / 15 is ehh)
+
+<!--# Look at a majoruty of them 3-5 / 30 would be a good representation. Or 10% of the number. -->
+
+Lets make cutoff 290
 
 #### Reverse Reads
 
 ```{r}
-plotQualityProfile(fnRs[1:2])
+plotQualityProfile(fnRs[1:4])
 ```
 
 Trimming as the average qualities crash will improve the algorithm's sensitivity to rare sequence variants.
 
-Based on these profiles, <!--# we will truncate forwards at 250 and R at 200?? -->
+Lets cut off at 250
+
+Based on these profiles, <!--# we will truncate forwards at 290 and R at 275?? -->
 
 **Considerations for your own data:** **Your reads must still overlap after truncation in order to merge them later!** The tutorial is using 2x250 V4 sequence data, so the forward and reverse reads almost completely overlap and our trimming can be completely guided by the quality scores.
 
@@ -100,7 +104,7 @@ We'll use standard filtering parameters: `maxN=0` (DADA2 requires no Ns), `trunc
 
 ```{r}
 out <- filterAndTrim(
-  fnFs, filtFs, fnRs, filtRs, truncLen=c(250,200), #insert where we trim for F/R
+  fnFs, filtFs, fnRs, filtRs, truncLen=c(290,275), #insert where we trim for F/R
               maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
               compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 head(out)
@@ -139,9 +143,10 @@ We want the estimated error rates [(black line) to be a good fit to the observed
 
 #### Apply the Sample Inference Algorithm to the filtered and trimmed sequence data
 
+25-35% ARE LOST IS NORMAL. If it is around 50% that is bad.
+
 ```{r}
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
-
 ```
 
 ```{r}
@@ -156,7 +161,7 @@ dadaFs[[1]]
 
 ```
 
-The DADA2 algorithm inferred 36 true sequence variants from the 418 unique sequences in the first sample. There is much more to the `dada-class` return object than this (see `help("dada-class")` for some info), including multiple diagnostics about the quality of each denoised sequence variant, but that is beyond the scope of an introductory tutorial.
+The DADA2 algorithm inferred 19 true sequence variants from the 613 unique sequences in the first sample. There is much more to the `dada-class` return object than this (see `help("dada-class")` for some info), including multiple diagnostics about the quality of each denoised sequence variant, but that is beyond the scope of an introductory tutorial.
 
 # Merging Paired Reads
 
@@ -176,8 +181,6 @@ The `mergers` object is a list of `data.frame`s from each sample. Each `data.fra
 
 We can now construct an amplicon sequence variant table (ASV) table, a higher-resolution version of the OTU table produced by traditional methods.
 
-<!--# Do i need to make this OTU? -->
-
 ```{r}
 seqtab <- makeSequenceTable(mergers)
 dim(seqtab)
@@ -188,15 +191,17 @@ dim(seqtab)
 table(nchar(getSequences(seqtab)))
 ```
 
-The sequence table is a `matrix` with rows corresponding to (and named by) the samples, and columns corresponding to (and named by) the sequence variants. This table contains 1593 ASVs, and the lengths of our merged sequences all fall within the expected range for this V4 amplicon.
+Top row is length. Bottom row is number of sequences at that length. This makes since as V4 is \~291bp
 
-<!--# Is this true for V4? = 291bp... -->
+The sequence table is a `matrix` with rows corresponding to (and named by) the samples, and columns corresponding to (and named by) the sequence variants. This table contains 1593 ASVs, and the lengths of our merged sequences all fall within the expected range for this V4 amplicon.
 
 **Considerations for your own data:** Sequences that are much longer or shorter than expected may be the result of non-specific priming. You can remove non-target-length sequences from your sequence table (eg. `seqtab2 <- seqtab[,nchar(colnames(seqtab)) %in% 250:256]`). This is analogous to "cutting a band" in-silico to get amplicons of the targeted length.
 
 <!--# May need to do this -->
 
 # Remove Chimeras
+
+**Chimeras: Things denature --> Front of forward of one species will bind to back of reverse of another = chimera.**
 
 The core `dada` method corrects substitution and indel errors, but chimeras remain. Fortunately, the accuracy of sequence variants after denoising makes identifying chimeric ASVs simpler than when dealing with fuzzy OTUs. Chimeric sequences are identified if they can be exactly reconstructed by combining a left-segment and a right-segment from two more abundant "parent" sequences.
 
@@ -209,9 +214,9 @@ dim(seqtab.nochim)
 sum(seqtab.nochim)/sum(seqtab)
 ```
 
-The frequency of chimeric sequences varies substantially from dataset to dataset, and depends on on factors including experimental procedures and sample complexity. Here chimeras make up about X% of the merged sequence variants, but when we account for the abundances of those variants we see they account for about 20% of the merged sequence reads.
+The frequency of chimeric sequences varies substantially from dataset to dataset, and depends on on factors including experimental procedures and sample complexity. Here chimeras make up about X% of the merged sequence variants, but when we account for the abundances of those variants we see they account for about 12% of the merged sequence reads.
 
-<!--# Is this a lot? -->
+Maybe more than 25% of chimeras would be bad...
 
 **Considerations for your own data:** Most of your **reads** should remain after chimera removal (it is not uncommon for a majority of **sequence variants** to be removed though). If most of your reads were removed as chimeric, upstream processing may need to be revisited. In almost all cases this is caused by primer sequences with ambiguous nucleotides that were not removed prior to beginning the DADA2 pipeline.
 
