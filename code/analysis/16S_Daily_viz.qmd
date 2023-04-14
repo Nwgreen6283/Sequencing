@@ -1,0 +1,132 @@
+---
+title: "16S_daily"
+format:
+  html:
+    theme: default
+---
+
+# Getting Started:
+
+#### Libraries
+
+```{r}
+library(tidyverse)
+library(here)
+library(vegan)
+library(viridis)
+library(cowplot)
+```
+
+#### Load Clean 16S data
+
+```{r}
+data<- readRDS(file = here("data", "clean_data", "clean_16S_Daily.rds"))
+ps<- readRDS(file =  here("data", "clean_data", "clean_16S_phyloseq_Daily.rds")) #For Diversity Plots
+```
+
+# Cleaning
+
+#### Filter out undesirables (e.g. mitochondria)
+
+```{r}
+data<- data %>%
+  filter(!Family %in% "Mitochondria",
+         !Order %in% "Chloroplast") #Filter out Mitochondria 
+```
+
+#### Make Date a `Date` variable
+
+```{r}
+data<-
+  data %>%
+mutate(Date = case_when( Date == "7" ~ "2022-07-07",
+                          Date == "8" ~ "2022-07-08",
+                          Date == "9" ~ "2022-07-09",
+                          Date == "11" ~ "2022-07-11",
+                          Date == "12" ~ "2022-07-12",
+                          Date == "13" ~ "2022-07-13",
+                          Date == "14" ~ "2022-07-14",
+                          Date == "15" ~ "2022-07-15",
+                          Date == "16" ~ "2022-07-16",
+                          Date == "17" ~ "2022-07-17",
+                          Date == "18" ~ "2022-07-18",
+                          Date == "19" ~ "2022-07-19")) 
+data<- data %>%
+  mutate(Date = as.Date(data$Date))
+```
+
+# Visualization
+
+## Community Composition
+
+https://www.rpubs.com/roalle/mres_2019
+
+#### Stacked Barplot
+
+```{r, fig.width=12}
+data %>% 
+  filter(Site %in% c("BO", "C2", "RD")) %>% #Gets rid of Positive Controls
+    ggplot() + geom_bar(
+  aes(x = Date,
+      y = Abundance,
+      fill = Order),
+  color = "black",
+  stat = "identity") +
+  facet_wrap(~Site, scales = "free_x")+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_date(date_breaks = "1 day", date_labels = "%b%d") 
+```
+
+##### Stacked Barplot: Look at just Vibrionales
+
+```{r}
+vib<- data %>% 
+  filter(Order %in% "Vibrionales") 
+
+vib %>% ggplot() + geom_bar(
+  aes(x = ddate,
+      y = Abundance,
+      fill = Order),
+  color = "black",
+  stat = "identity") +
+  facet_wrap(~Site, scales = "free_x")+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_date(date_breaks = "1 day", date_labels = "%b%d") 
+```
+
+## Diversity (Phyloseq)
+
+### Alpha Diversity
+
+#### Plot
+
+```{r}
+alpha_plot <- 
+  plot_richness(
+    ps, 
+    x="Date",
+    measures=c("Shannon", "Simpson"), 
+    color="Site") + 
+  theme_bw() +
+ theme(axis.text.x = element_text(angle = 60, hjust = 1))
+alpha_plot
+```
+
+#### Stats
+
+```{r}
+#Yay! We made a plot! But are values significantly different from one another? Lets estimate richness and then run a Mann-Whitley significance test.
+#Get the richness values for Shannon and Simson Indices
+a_rich <- estimate_richness(ps, split = TRUE, measures = c("Shannon", "Simpson"))
+
+#Run a Mann-Whitley (Pairwise Wilcox) test on shannon indice values to observe significance with certain variables - here we will use Site
+a_shan <- pairwise.wilcox.test(a_rich$Shannon, sample_data(ps)$Site)
+a_shan
+#Run a Mann-Whitley (Pairwise Wilcox) test on simpson indice values to observe significance with certain variables - here we will use Site
+a_simp <-pairwise.wilcox.test(a_rich$Simpson, sample_data(ps)$Site)
+a_simp
+```
+
+## Beta Diversity
