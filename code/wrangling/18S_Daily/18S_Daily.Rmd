@@ -109,7 +109,7 @@ We'll use standard filtering parameters: `maxN=0` (DADA2 requires no Ns), `trunc
 ```{r}
 out <- filterAndTrim(
   fnFs, filtFs, fnRs, filtRs, truncLen=c(250,225), #insert where we trim for F/R
-              maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+              maxN=0, maxEE=c(2,5), truncQ=2, rm.phix=TRUE,
               compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 head(out)
 ```
@@ -258,7 +258,7 @@ We maintain [formatted training fastas for the RDP training set, GreenGenes clus
 ##### Reference database is stored in separate folder in "r_wd" from Project so that I can upload to Github (the ref db is \>100mb)
 
 ```{r}
-taxa <- assignTaxonomy(seqtab.nochim, "/Users/nathangreenslit/Desktop/UGA/R/r_wd/sequencing_ref_datasets/silva_nr99_v138.1_train_set.fa.gz", multithread=TRUE)
+taxa <- assignTaxonomy(seqtab.nochim, "/Users/nathangreenslit/Desktop/UGA/R/r_wd/sequencing_ref_datasets/SILVA_138.1_SSURef_opt.arb.gz", multithread=TRUE)
 #RDP: rdp_train_set_18.fa.gz 
 #Silva_132: silva_nr_v132_train_set.fa.gz
 #Silve_138: silva_nr99_v138.1_train_set.fa.gz
