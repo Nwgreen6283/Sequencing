@@ -1,0 +1,92 @@
+---
+title: "16S_daily"
+format:
+  html:
+    theme: default
+---
+
+# Getting Started:
+
+#### Libraries
+
+```{r, include=FALSE}
+library(tidyverse)
+library(here)
+library(vegan)
+library(viridis)
+library(cowplot)
+```
+
+#### Load Clean 16S data
+
+```{r}
+ps<- readRDS(file = here("data", "clean_data", "clean_16s_phyloseq_Monthly.rds"))
+```
+
+# Cleaning
+
+#### Make Top### Dataframe
+
+```{r}
+topN <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:300] #Selects top N to look at
+ps.topN <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.topN <- prune_taxa(topN, ps.topN)
+```
+
+#### Make into DF so we can manipulate
+
+```{r}
+data<- psmelt(ps.topN)
+```
+
+#### Make Date into chr so the bars can be stacked next to each other
+
+```{r}
+data<-
+  data %>%
+  mutate(Date = as.character(Date))
+```
+
+# Visualization
+
+## Community Composition
+
+https://www.rpubs.com/roalle/mres_2019
+
+#### Stacked Barplot
+
+```{r, fig.width=12, fig.height=7}
+data %>% 
+  filter(Site %in% c("BO", "C2", "RD")) %>% #Gets rid of Positive Controls
+    ggplot() + geom_bar(
+  aes(x = Date,
+      y = Abundance,
+      fill = Order),
+ # color = "black",
+  stat = "identity") +
+  facet_wrap(~Site, scales = "free_x")+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    #legend.position = "none"
+    ) 
+```
+
+##### Stacked Barplot: Look at just Borchardt
+
+```{r}
+vib<- data %>% 
+  filter(Order %in% c("Vibrionales"),
+         !Site %in% "gu") 
+
+vib %>% ggplot() + geom_bar(
+  aes(x = Date,
+      y = Abundance,
+      fill = Family),
+  color = "black",
+  stat = "identity") +
+  facet_wrap(~Site, scales = "free_x")+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## 

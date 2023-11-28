@@ -1,0 +1,145 @@
+---
+title: "16S_daily"
+format:
+  html:
+    theme: default
+---
+
+#### Libraries
+
+```{r, include=FALSE}
+library(phyloseq); packageVersion("phyloseq")
+library(Biostrings); packageVersion("Biostrings")
+library(ggplot2); packageVersion("ggplot2")
+library(microViz)
+library(here)
+library(tidyverse)
+```
+
+**Data**
+
+```{r}
+ps<- readRDS(here("data", "clean_data", "clean_16s_phyloseq_Monthly.rds"))
+```
+
+# Cleaning
+
+**Set theme**
+
+```{r}
+theme_set(theme_bw())
+pal = "Set1"
+scale_colour_discrete <-  function(palname=pal, ...){
+  scale_colour_brewer(palette=palname, ...)
+}
+scale_fill_discrete <-  function(palname=pal, ...){
+  scale_fill_brewer(palette=palname, ...)
+}
+```
+
+**Prune OTUs that are not present in the samples**
+
+```{r}
+ps_prune <- prune_taxa(taxa_sums(ps) > 0, ps)
+
+```
+
+**Get Rid of Gut Standard**
+
+```{r}
+ps_new <- subset_samples(ps_prune, Site != "Gu")
+```
+
+# Plotting
+
+**Color Pallette**
+
+```{r}
+cbbPalette <- c("#DDAA33", "#BB5566", "#004488")
+```
+
+## [Alpha Diversity](https://joey711.github.io/phyloseq/plot_richness-examples.html)
+
+**Site**
+
+```{r}
+plot_richness(ps_new,
+              x = "Site",
+              color = "Site",
+              measures=c(#"Chao1", 
+                         "Simpson",
+                         "Shannon")) +
+  geom_boxplot()+
+  scale_color_manual(values = cbbPalette)
+```
+
+**Shannon: LDD vs. HDD**
+
+```{r}
+plot_richness(ps_new,
+              x = "Site",
+              color = "Site",
+              measures=c(#"Chao1", 
+                         #"Simpson")) +
+                         "Shannon")) +
+  geom_boxplot()+
+  facet_wrap(~factor(Season, c("Winter", "Spring", "Summer", "Fall"))) +
+  labs(title = "Shannon")+
+  scale_color_manual(values = cbbPalette)
+```
+
+**Simpson: LDD vs. HDD**
+
+```{r}
+plot_richness(ps_new,
+              x = "Site",
+              color = "Site",
+              measures=c(#"Chao1", 
+                         "Simpson")) +
+                         #"Shannon")) +
+  geom_boxplot()+
+  facet_wrap(~factor(When, c("LDD", "HDD")))+
+  labs(title = "Simpson") +
+  scale_color_manual(values = cbbPalette)
+```
+
+#### Stats
+
+```{r}
+#Yay! We made a plot! But are values significantly different from one another? Lets estimate richness and then run a Mann-Whitley significance test.
+#Get the richness values for Shannon and Simson Indices
+a_rich <- estimate_richness(ps_new, split = TRUE, measures = c("Shannon", "Simpson"))
+
+#Run a Mann-Whitley (Pairwise Wilcox) test on shannon indice values to observe significance with certain variables - here we will use Site
+a_shan <- pairwise.wilcox.test(a_rich$Shannon, sample_data(ps_new)$Site)
+a_shan
+#Run a Mann-Whitley (Pairwise Wilcox) test on simpson indice values to observe significance with certain variables - here we will use Site
+a_simp <-pairwise.wilcox.test(a_rich$Simpson, sample_data(ps_new)$Site)
+a_simp
+```
+
+## [Beta Diversity](https://scienceparkstudygroup.github.io/microbiome-lesson/06-beta-diversity/index.html)
+
+While alpha-diversity represents the diversity within an ecosystem or a sample, beta-diversity represents the difference between two ecosystems/samples. In other word, how similar or different are two ecosystems or samples? So, beta-diversity is a distance between two samples. Microbial ecologists do not use Euclidean distances but usually use Bray-Curtis, Jaccard or weight/unweight Unifrac distances to estimate the betadiversity.
+
+```{r}
+ord_MDS <- ordinate(ps_new, "MDS", "bray")
+p <- plot_ordination(ps_new, ord_MDS, 
+                     type = "samples",
+                     color = "Season", 
+                     title = "MDS ordination") + 
+  geom_point(size = 1) 
+
+print(p)
+```
+
+```{r}
+#Now lets see if the beta diversity shows significance for variables.
+#First we have to see if our data set has normal parameters with a shapiro-wilkes test (basically if the data is distributed normally)
+
+#Get the distance of samples from one another
+b_dist <- distance(ps_new, method = "unifrac", weighted = T)
+
+#PERMANOVA test to see if environment is a significant variable impacting tick microbiomes - if significant, there would be stars next to the Pr > F values.
+adonis(b_dist ~ sample_data(samp_ps)$Environment)
+```

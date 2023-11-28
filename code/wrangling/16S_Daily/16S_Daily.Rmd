@@ -44,12 +44,15 @@ list.files(path)
 
 Now we read in the names of the fastq files, and perform some string manipulation to get matched lists of the forward and reverse fastq files.
 
+<!--# Note: I had to alter the sample.names portion as it was in a differnet format than SAMPLENAME_XXX.fastq -->
+
 ```{r}
 # Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq and SAMPLENAME_R2_001.fastq
 fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
-sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+#sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+sample.names<- substr(fnFs,86,90) #SITE_Day
 ```
 
 # Inspecting Read Quality
@@ -68,7 +71,7 @@ Look at about 10% of your samples. So if I had 50 samples, I would want 5 plots 
 
 I am going to use 15
 
-[**Forward Cutoff:**]{.ul} 250
+[**Forward Cutoff:**]{.ul} We dont see any decrease in quality score, so lets ambiguously choose [**290**]{.ul}
 
 #### Reverse Reads
 
@@ -104,7 +107,7 @@ We'll use standard filtering parameters: `maxN=0` (DADA2 requires no Ns), `trunc
 
 ```{r}
 out <- filterAndTrim(
-  fnFs, filtFs, fnRs, filtRs, truncLen=c(250,225), #insert where we trim for F/R
+  fnFs, filtFs, fnRs, filtRs, truncLen=c(290,225), #insert where we trim for F/R
               maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
               compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 head(out)
@@ -134,6 +137,7 @@ errR <- learnErrors(filtRs, multithread=TRUE)
 
 ```{r}
 plotErrors(errF, nominalQ=TRUE)
+plotErrors(errR, nominalQ=TRUE)
 
 ```
 
@@ -252,10 +256,11 @@ We maintain [formatted training fastas for the RDP training set, GreenGenes clus
 ##### Reference database is stored in separate folder in "r_wd" from Project so that I can upload to Github (the ref db is \>100mb)
 
 ```{r}
-taxa <- assignTaxonomy(seqtab.nochim, "/Users/nathangreenslit/Desktop/UGA/R/r_wd/sequencing_ref_datasets/silva_nr99_v138.1_train_set.fa.gz", multithread=TRUE)
+taxa <- assignTaxonomy(seqtab.nochim, "/Users/nathangreenslit/Desktop/UGA/R/r_wd/sequencing_ref_datasets/silva_nr_v132_train_set.fa.gz", multithread=TRUE)
 #RDP: rdp_train_set_18.fa.gz 
 #Silva_132: silva_nr_v132_train_set.fa.gz
-#Silve_138: silva_nr99_v138.1_train_set.fa.gz
+#Silva_138: silva_nr99_v138.1_train_set.fa.gz
+#GreenGenes: bac120_metadata.tsv.gz
 ```
 
 **Extensions:** The dada2 package also implements a method to make [species level assignments based on **exact matching**](https://benjjneb.github.io/dada2/assign.html#species-assignment) between ASVs and sequenced reference strains. Recent analysis suggests that [exact matching (or 100% identity) is the only appropriate way to assign species to 16S gene fragments](https://academic.oup.com/bioinformatics/advance-article-abstract/doi/10.1093/bioinformatics/bty113/4913809). Currently, [species-assignment training fastas are available for the Silva and RDP 16S databases](https://benjjneb.github.io/dada2/training.html). To follow the optional species addition step, download the `silva_species_assignment_v132.fa.gz` file, and place it in the directory with the fastq files.
@@ -330,16 +335,38 @@ samples.out <- rownames(seqtab.nochim)
 subject <- sapply(strsplit(samples.out, "NONE"), `[`, 1)
 
 #Site Column:
-gender <- substr(subject,9,10) 
+Site <- substr(subject,1,2) 
 #8 and 9 are the character numbers. Basically going from 264-NG-BO-19-5437 and pulling the 8th and 9th characters "B" and "O"
 
-#Date Column:
-subject <- substr(subject,12,13)  #Same thing here for date "1" and "2" = 12th 
-day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2)) #Does something with the name..
-samdf <- data.frame(Date=subject, Site=gender, Day=day) #Renaming gender and subject as Date and Site
+#Day Column:
+Day <- substr(subject,4,5)  #Same thing here for date "1" and "2" = 12th 
+#day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2)) #Does something with the name..
 
-samdf$When <- "Early"
-samdf$When[samdf$Day>100] <- "Late"
+
+samdf$When <- "HDD"
+samdf$When[samdf$Date<13 | samdf$Date== '7_'| samdf$Date== '8_' | samdf$Date== '9_'  ] <- "LDD"
+
+#Date Column
+samdf$Date[samdf$Day == '7_'] <- '2022-07-07'
+samdf$Date[samdf$Day == '8_'] <- '2022-07-08'
+samdf$Date[samdf$Day == '9_'] <- '2022-07-09'
+samdf$Date[samdf$Day == '11'] <- '2022-07-11'
+samdf$Date[samdf$Day == '12'] <- '2022-07-12'
+samdf$Date[samdf$Day == '13'] <- '2022-07-13'
+samdf$Date[samdf$Day == '14'] <- '2022-07-14'
+samdf$Date[samdf$Day == '15'] <- '2022-07-15'
+samdf$Date[samdf$Day == '16'] <- '2022-07-16'
+samdf$Date[samdf$Day == '17'] <- '2022-07-17'
+samdf$Date[samdf$Day == '18'] <- '2022-07-18'
+samdf$Date[samdf$Day == '19'] <- '2022-07-19'
+
+#Type Column
+samdf$Type <- "Daily"
+
+#Remove Gut Standard
+smdf<- filter(samdf, !Site == "gu")
+
+
 rownames(samdf) <- samples.out
 ```
 
@@ -368,24 +395,25 @@ taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
 ps
 ```
 
-#### Make dataframe for barplot
-
-```{r, fig.width= 10}
-top300 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:100000] #Selects top N to look at
-ps.top300 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
-ps.top300 <- prune_taxa(top300, ps.top300)
-```
-
-#Make a dataframe so we can work with it
+**Filter out Mitochondria and Chloroplasts**
 
 ```{r}
-ps_1<- psmelt(ps.top300)
+ps <- ps %>%
+  subset_taxa(
+    Family  != "Mitochondria" &
+      Order   != "Chloroplast") 
 ```
 
-Save as RDS
+**Make Date a date column**
 
 ```{r}
-saveRDS(ps_1, file = here("data", "clean_data", "clean_16S_Daily.rds"))
+ps<-
+  ps %>%
+  ps_mutate(Date = as.Date(Date))
+```
 
+**Save PhyloSeq Object**
+
+```{r}
 saveRDS(ps, file = here("data", "clean_data", "clean_16s_phyloseq_Daily.rds"))
 ```
