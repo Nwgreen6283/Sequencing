@@ -330,6 +330,8 @@ theme_set(theme_bw())
 
 Look at `samdf` to tweak naming
 
+<!--# This is where I could merge with all the meta data -->
+
 ```{r}
 samples.out <- rownames(seqtab.nochim)
 subject <- sapply(strsplit(samples.out, "NONE"), `[`, 1)
@@ -363,8 +365,10 @@ samdf$Date[samdf$Day == '19'] <- '2022-07-19'
 #Type Column
 samdf$Type <- "Daily"
 
-#Remove Gut Standard
-smdf<- filter(samdf, !Site == "gu")
+#Remove Gut Standard and Day Column
+smdf<-
+  filter(samdf, !Site == "gu") %>%
+  select(!Day)
 
 
 rownames(samdf) <- samples.out

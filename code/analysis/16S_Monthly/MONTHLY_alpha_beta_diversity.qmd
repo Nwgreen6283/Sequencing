@@ -88,21 +88,6 @@ plot_richness(ps_new,
   scale_color_manual(values = cbbPalette)
 ```
 
-**Simpson: LDD vs. HDD**
-
-```{r}
-plot_richness(ps_new,
-              x = "Site",
-              color = "Site",
-              measures=c(#"Chao1", 
-                         "Simpson")) +
-                         #"Shannon")) +
-  geom_boxplot()+
-  facet_wrap(~factor(When, c("LDD", "HDD")))+
-  labs(title = "Simpson") +
-  scale_color_manual(values = cbbPalette)
-```
-
 #### Stats
 
 ```{r}
@@ -126,7 +111,8 @@ While alpha-diversity represents the diversity within an ecosystem or a sample, 
 ord_MDS <- ordinate(ps_new, "MDS", "bray")
 p <- plot_ordination(ps_new, ord_MDS, 
                      type = "samples",
-                     color = "Season", 
+                     color = "Site
+                     ", 
                      title = "MDS ordination") + 
   geom_point(size = 1) 
 

@@ -15,6 +15,7 @@ library(here)
 library(vegan)
 library(viridis)
 library(cowplot)
+library(pals)
 ```
 
 #### Load Clean 16S data
@@ -28,7 +29,11 @@ ps<- readRDS(file = here("data", "clean_data", "clean_16s_phyloseq_Daily.rds"))
 #### Make Top### Dataframe
 
 ```{r}
-topN <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:300] #Selects top N to look at
+N<- 450
+```
+
+```{r}
+topN <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:N] #Selects top N to look at
 ps.topN <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.topN <- prune_taxa(topN, ps.topN)
 ```
@@ -37,27 +42,6 @@ ps.topN <- prune_taxa(topN, ps.topN)
 
 ```{r}
 data<- psmelt(ps.topN)
-```
-
-#### Make Date a `Date` variable
-
-```{r}
-data<-
-  data %>%
-mutate(Date = case_when( Date == "7_" ~ "2022-07-07",
-                          Date == "8_" ~ "2022-07-08",
-                          Date == "9_" ~ "2022-07-09",
-                          Date == "11" ~ "2022-07-11",
-                          Date == "12" ~ "2022-07-12",
-                          Date == "13" ~ "2022-07-13",
-                          Date == "14" ~ "2022-07-14",
-                          Date == "15" ~ "2022-07-15",
-                          Date == "16" ~ "2022-07-16",
-                          Date == "17" ~ "2022-07-17",
-                          Date == "18" ~ "2022-07-18",
-                          Date == "19" ~ "2022-07-19")) 
-data<- data %>%
-  mutate(Date = as.Date(data$Date))
 ```
 
 # Visualization
@@ -74,15 +58,16 @@ data %>%
     ggplot() + geom_bar(
   aes(x = Date,
       y = Abundance,
-      fill = Family),
-  color = "black",
+      fill = Order),
+ # color = "black",
   stat = "identity") +
   facet_wrap(~Site, scales = "free_x")+
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    #legend.position = "none"
-    ) +
-  scale_x_date(date_breaks = "1 day", date_labels = "%b%d") 
+  scale_fill_manual(values = unname(polychrome()))+
+  ggtitle( paste( "16S Daily Top", N, "Taxa"))+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, face = "bold"),
+        axis.title.x = element_blank(),
+        plot.title = element_text(face = "bold", size = 20))
 ```
 
 ##### Stacked Barplot: Look at just Borchardt
