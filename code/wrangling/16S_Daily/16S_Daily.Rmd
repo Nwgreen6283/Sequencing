@@ -343,10 +343,10 @@ Site <- substr(subject,1,2)
 #Day Column:
 Day <- substr(subject,4,5)  #Same thing here for date "1" and "2" = 12th 
 #day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2)) #Does something with the name..
-
+samdf <- data.frame(Site = Site,  Day=Day)
 
 samdf$When <- "HDD"
-samdf$When[samdf$Date<13 | samdf$Date== '7_'| samdf$Date== '8_' | samdf$Date== '9_'  ] <- "LDD"
+samdf$When[samdf$Day<13 | samdf$Day== '7_'| samdf$Day== '8_' | samdf$Day== '9_'  ] <- "LDD"
 
 #Date Column
 samdf$Date[samdf$Day == '7_'] <- '2022-07-07'

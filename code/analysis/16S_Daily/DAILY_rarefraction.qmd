@@ -1,0 +1,44 @@
+---
+title: "Untitled"
+format:
+  html:
+    theme: default
+---
+
+[Link](https://fromthebottomoftheheap.net/2015/04/16/drawing-rarefaction-curves-with-custom-colours/)
+
+**Libs**
+
+```{r, include= FALSE }
+library(here)
+library(tidyverse)
+library(vegan)
+
+```
+
+**Data**
+
+```{r}
+ps<- readRDS(file = here("data", "clean_data", "clean_16s_phyloseq_Daily.rds"))
+```
+
+# Rarefraction Curve
+
+```{r}
+otu.rare = otu_table(ps)
+otu.rare = as.data.frame(t(otu.rare))
+sample_names = rownames(otu.rare)
+```
+
+```{r}
+r<- subset(otu.rare, select=RD_11:RD_9_)
+c<- subset(otu.rare, select=C2_11:C2_9_)
+b<- subset(otu.rare, select=BO_11:BO_9_)
+```
+
+```{r}
+# we will use vegan rarecurve 
+otu.rarecurve = rarecurve(b, step = 10000, label = F)
+otu.rarecurve = rarecurve(c, step = 10000, label = F)
+otu.rarecurve = rarecurve(r, step = 10000, label = F)
+```

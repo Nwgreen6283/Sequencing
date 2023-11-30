@@ -1,0 +1,87 @@
+---
+title: "Untitled"
+format:
+  html:
+    theme: default
+---
+
+**Libs**
+
+```{r, include=FALSE}
+library(tidyverse)
+library(here)
+library(Rmisc)
+```
+
+```{r}
+here<- here::here
+select<- dplyr::select
+```
+
+**Data**
+
+```{r}
+ps<- readRDS(file = here("data", "clean_data", "clean_16s_phyloseq_Daily.rds"))
+```
+
+# Cleaning
+
+#### Make Top N Dataframe
+
+```{r}
+N<- 300
+```
+
+```{r}
+topN <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:N] #Selects top N to look at
+ps.topN <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.topN <- prune_taxa(topN, ps.topN)
+```
+
+**Melt PS into DF**
+
+```{r}
+data<- psmelt(ps.topN)
+```
+
+**Remove Gut Standard**
+
+```{r}
+data<- 
+  data %>%
+  filter(!Sample %in% "gut_s")
+```
+
+**Define Taxanomic Group**
+
+```{r}
+tax<- "Family"
+```
+
+```{r}
+sum <- summarySE(data, measurevar="Abundance", groupvars=c("Site", tax, "When"))
+```
+
+# Plot
+
+**Color Pallet**
+
+```{r}
+cbbPalette <- c("#DDAA33", "#BB5566", "#004488")
+```
+
+```{r}
+ggplot(sum, 
+       aes(x=Abundance, 
+           y= Family, 
+           color=Site)) + 
+    geom_errorbar(
+      aes(xmin=Abundance-se, 
+          xmax=Abundance+se), 
+      size = 0.5,
+      width=0.3) +
+    geom_point(data = sum, size = 2.5, alpha = 0.7)+
+  scale_color_manual(values = cbbPalette)+
+  theme_bw()+
+  facet_wrap(~When)
+```
