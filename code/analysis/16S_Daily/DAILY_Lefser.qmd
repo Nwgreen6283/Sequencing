@@ -1,0 +1,70 @@
+---
+title: "Lefser"
+format:
+  html:
+    theme: default
+---
+
+# [LINK](https://rpubs.com/mohsen/lefse_analysis_cleaned_prevalence_phyloseq)
+
+**Libs**
+
+```{r, include=FALSE}
+library(here)
+library(tidyverse)
+library(phyloseq)
+library(microbiomeMarker)
+library(knitr)
+```
+
+**Data**
+
+```{r}
+ps<- readRDS(here("data", "clean_data", "clean_16s_phyloseq_Daily.rds"))
+```
+
+# Cleaning
+
+```{r}
+table(sample_data(ps)$When)
+```
+
+21 samples in HDD and 16 Samples in LDD
+
+```{r}
+lef_out<-run_lefse(ps, group = "When", norm = "CPM",
+                   
+                   kw_cutoff = 0.05, lda_cutoff = 2)
+
+lef_out
+```
+
+```{r}
+dat<-marker_table(lef_out) %>% data.frame() %>% select(1:4)
+
+head(dat)
+```
+
+```{r}
+dat %>% filter(enrich_group=="LDD") %>% head()
+```
+
+```{r}
+dat %>% kable(align = "c")
+```
+
+# Visualization
+
+**Histogram**
+
+```{r}
+plot_ef_bar(lef_out)
+```
+
+**Cladogram**
+
+The default is 4 which is showing the kingdom, Phylum, Class on the cladogram.
+
+```{r}
+plot_cladogram(lef_out, color = c("red","blue"), clade_label_level = 4)
+```
