@@ -29,7 +29,7 @@ ps<- readRDS(file = here("data", "clean_data", "clean_16s_phyloseq_Daily.rds"))
 #### Make Top N Dataframe
 
 ```{r}
-N<- 300
+N<- 250
 ```
 
 ```{r}
@@ -52,6 +52,17 @@ data<-
   filter(!Sample %in% "gut_s")
 ```
 
+**Rename Sites**
+
+```{r}
+data<-
+  data %>%
+  mutate(Site = recode(Site, 
+                       "BO" = "Blind Oso",
+                       "C2" = "Canals",
+                       "RD" = "Gulf"))
+```
+
 **Define Taxanomic Group**
 
 ```{r}
@@ -70,7 +81,7 @@ sum <- summarySE(data, measurevar="Abundance", groupvars=c("Site", tax, "When"))
 cbbPalette <- c("#DDAA33", "#BB5566", "#004488")
 ```
 
-```{r, fig.width=8}
+```{r, fig.width=4}
 ggplot(sum, 
        aes(x=Abundance, 
            y= Family, 
@@ -83,5 +94,6 @@ ggplot(sum,
     geom_point(data = sum, size = 2.5, alpha = 0.7)+
   scale_color_manual(values = cbbPalette)+
   theme_bw()+
-  facet_wrap(~factor(When, c("LDD", "HDD")))
+  facet_wrap(~factor(When, c("LDD", "HDD")))+
+  ggtitle( paste( "Top", N, "Taxa"))
 ```

@@ -17,6 +17,11 @@ library(microbiomeMarker)
 library(knitr)
 ```
 
+```{r}
+here<- here::here
+select<- dplyr::select
+```
+
 **Data**
 
 ```{r}
@@ -56,6 +61,28 @@ dat %>% kable(align = "c")
 # Visualization
 
 **Histogram**
+
+```{r}
+plot_ef_bar(lef_out)
+```
+
+**Specify to a specific Taxonomic Rank**
+
+```{r}
+lef_out<-run_lefse(ps, group = "When", norm = "CPM",
+                   
+                   taxa_rank = "Class",
+                   
+                   kw_cutoff = 0.05, lda_cutoff = 2)
+
+lef_out
+```
+
+```{r}
+dat<-marker_table(lef_out) %>% data.frame() %>% select(1:4)
+
+head(dat)
+```
 
 ```{r}
 plot_ef_bar(lef_out)
